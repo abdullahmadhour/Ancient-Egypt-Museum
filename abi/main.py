@@ -63,6 +63,7 @@ async def read_root(request: Request):
         context={"artifacts": artifacts_data}
     )
 
+# بدلاً من @app.post("/book/")
 @app.post("/book", response_class=HTMLResponse)
 async def book_ticket(
     request: Request,
