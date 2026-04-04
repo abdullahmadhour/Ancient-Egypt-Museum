@@ -8,25 +8,22 @@ import uuid
 
 app = FastAPI()
 
-# --- إعداد المسارات ---
-current_file_path = Path(__file__).resolve()
-
-if current_file_path.parent.name in ["api", "abi", "backend"]:
-    BASE_DIR = current_file_path.parent.parent
-else:
-    BASE_DIR = current_file_path.parent
+# --- إعداد المسارات البرمجية ---
+# Vercel يقوم بتشغيل الكود من داخل مجلد api، لذا نحتاج لتحديد المسار الأساسي بدقة
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 templates_dir = BASE_DIR / "templates"
 static_dir = BASE_DIR / "static"
 
-# تأكد من وجود مجلد static
+# التأكد من وجود المجلدات (اختياري للبيئة المحلية)
 if not static_dir.exists():
     static_dir.mkdir(parents=True, exist_ok=True)
 
+# إعداد محرك القوالب والملفات الثابتة
 templates = Jinja2Templates(directory=str(templates_dir))
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-# --- البيانات المؤقتة ---
+# --- بيانات تجريبية ---
 bookings_db = []
 artifacts_data = [
     {"name": "قناع توت عنخ آمون", "desc": "أشهر تحفة ذهبية في العالم القديم.", "image": "mask.jpg"},
@@ -34,18 +31,11 @@ artifacts_data = [
     {"name": "بردية آني", "desc": "نص جنائزي قديم من كتاب الموتى.", "image": "papyrus.jpg"}
 ]
 
-# --- الراوتس (Endpoints) ---
-
-@app.get('/favicon.ico', include_in_schema=False)
-async def favicon():
-    file_path = static_dir / "favicon.ico"
-    if file_path.exists():
-        return FileResponse(file_path)
-    return None
+# --- المسارات (Endpoints) ---
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    # تم التصحيح: تمرير القاموس مباشرة
+    # التصحيح: تمرير القاموس كمعامل ثاني مباشرة (بدون كلمة context=)
     return templates.TemplateResponse(
         "index.html", 
         {"request": request, "artifacts": artifacts_data}
@@ -58,21 +48,23 @@ async def book_ticket(
     ticket_type: str = Form(...),
     ticket_count: int = Form(...)
 ):
+    # حساب الأسعار
     prices = {"egyptian": 60, "foreign": 200, "student": 30}
-    total_price = prices.get(ticket_type, 0) * ticket_count
+    unit_price = prices.get(ticket_type, 0)
+    total_price = unit_price * ticket_count
     ticket_id = str(uuid.uuid4())[:8].upper()
 
+    # إضافة الحجز لقاعدة البيانات المؤقتة
     new_booking = {
-        "رقم التذكرة": ticket_id,
-        "الاسم": full_name,
-        "النوع": ticket_type,
-        "العدد": ticket_count,
-        "الإجمالي": total_price,
-        "الحالة": "مؤكد"
+        "id": ticket_id,
+        "name": full_name,
+        "type": ticket_type,
+        "count": ticket_count,
+        "total": total_price,
+        "status": "مؤكد"
     }
     bookings_db.append(new_booking)
 
-    # تم التصحيح: تمرير القاموس مباشرة
     return templates.TemplateResponse(
         "success.html", 
         {
@@ -86,25 +78,31 @@ async def book_ticket(
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    # تم التصحيح: تمرير القاموس مباشرة
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
 async def login(username: str = Form(...), password: str = Form(...)):
+    # نظام دخول بسيط
     if username == "admin" and password == "12345":
         return RedirectResponse(url="/admin?auth=1", status_code=303)
     return RedirectResponse(url="/login?error=1", status_code=303)
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
+    # حماية بسيطة للمسار
     if request.query_params.get("auth") != "1":
         return RedirectResponse(url="/login", status_code=302)
     
     search_query = request.query_params.get("search", "").strip()
-    filtered_bookings = [b for b in bookings_db if search_query in b["الاسم"]] if search_query else bookings_db
-    total_revenue = sum(b["الإجمالي"] for b in bookings_db)
     
-    # تم التصحيح: تمرير القاموس مباشرة
+    # البحث والفلترة
+    if search_query:
+        filtered_bookings = [b for b in bookings_db if search_query.lower() in b["name"].lower()]
+    else:
+        filtered_bookings = bookings_db
+
+    total_revenue = sum(b["total"] for b in bookings_db)
+    
     return templates.TemplateResponse(
         "admin.html", 
         {
@@ -119,3 +117,11 @@ async def admin_panel(request: Request):
 @app.get("/logout")
 async def logout():
     return RedirectResponse(url="/", status_code=302)
+
+# معالجة Favicon لمنع خطأ 404 في السجلات
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    file_path = static_dir / "favicon.ico"
+    if file_path.exists():
+        return FileResponse(file_path)
+    return None

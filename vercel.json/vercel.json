@@ -1,15 +1,15 @@
 {
-  "version": 2,
+  "devCommand": "uvicorn api.main:app --reload",
   "builds": [
     {
-      "src": "abi/main.py",
+      "src": "api/main.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "abi/main.py"
+      "dest": "api/main.py"
     }
   ]
 }
