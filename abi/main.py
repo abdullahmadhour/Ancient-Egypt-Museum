@@ -109,7 +109,7 @@ async def login(username: str = Form(...), password: str = Form(...)):
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-    # حماية بسيطة للوحة الإدارة
+   
     if request.query_params.get("auth") != "1":
         return RedirectResponse(url="/login", status_code=302)
     
