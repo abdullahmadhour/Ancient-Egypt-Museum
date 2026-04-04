@@ -56,9 +56,8 @@ async def favicon():
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse(
-        request=request, 
-        name="index.html", 
-        context={"artifacts": artifacts_data}
+        "index.html",  # ضع اسم الملف مباشرة
+        {"request": request, "artifacts": artifacts_data} # القاموس يحتوي على request وكل بياناتك
     )
 
 
@@ -69,6 +68,18 @@ async def book_ticket(
     ticket_type: str = Form(...),
     ticket_count: int = Form(...)
 ):
+    # ... (باقي كود الحسابات كما هو) ...
+
+    return templates.TemplateResponse(
+        "success.html", 
+        {
+            "request": request, # ضروري جداً
+            "name": full_name,
+            "ticket_id": ticket_id,
+            "total": total_price,
+            "count": ticket_count
+        }
+    )
     
     prices = {"egyptian": 60, "foreign": 200, "student": 30}
     total_price = prices.get(ticket_type, 0) * ticket_count
